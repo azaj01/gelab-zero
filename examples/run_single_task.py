@@ -1,11 +1,12 @@
 import os
 import sys
+import time
 if "." not in sys.path:
     sys.path.append(".")
 
 from copilot_agent_client.pu_client import evaluate_task_on_device
-
-from copilot_front_end.mobile_action_helper import list_devices
+from copilot_front_end.mobile_action_helper import list_devices, get_device_wm_size
+from copilot_agent_server.local_server import LocalServer
 
 tmp_server_config = {
     "log_dir": "running_log/server_log/os-copilot-local-eval-logs/traces",
@@ -32,31 +33,54 @@ local_model_config = {
     "debug": False
 }
 
+
+# ===== 新增：用于记录每步耗时 =====
+_step_times = []
+
+
+# ===== 新增：包装 automate_step 方法 =====
+def wrap_automate_step_with_timing(server_instance):
+    original_method = server_instance.automate_step
+
+    def timed_automate_step(payload):
+        step_start = time.time()
+        try:
+            result = original_method(payload)
+        finally:
+            duration = time.time() - step_start
+            _step_times.append(duration)
+            print(f"Step {len(_step_times)} took: {duration:.2f} seconds")
+        return result
+
+    # 替换实例方法
+    server_instance.automate_step = timed_automate_step
+
 if __name__ == "__main__":
 
     # The device ID you want to use
     device_id = list_devices()[0]
-    
-
-    from copilot_front_end.mobile_action_helper import get_device_wm_size
-
     device_wm_size = get_device_wm_size(device_id)
     device_info = {
         "device_id": device_id,
         "device_wm_size": device_wm_size
     }
 
-    from copilot_agent_server.local_server import LocalServer
-
     # task = "打开微信，给柏茗，发helloworld"
     # task = "打开 给到 app，在主页，下滑寻找，员工权益-奋斗食代，帮我领劵。如果不能领取就退出。"
-    task = "open wechat to send a message 'helloworld' to 'TKJ'"
+    # task = "open wechat to send a message 'helloworld' to 'TKJ'"
+    task = "帮我用爱奇艺播放捕风捉影"
 
     tmp_rollout_config = local_model_config
-
     l2_server = LocalServer(tmp_server_config)
 
+    # 注入计时逻辑
+    wrap_automate_step_with_timing(l2_server)
+    # 执行任务并计总时间
+    total_start = time.time()
     evaluate_task_on_device(l2_server, device_info, task, tmp_rollout_config, reflush_app=True)
+    total_time = time.time() - total_start
 
-
+    # 在最后加一行总时间
+    print(f"总计执行时间为 {total_time} 秒")
+    
     pass
