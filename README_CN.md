@@ -552,4 +552,11 @@ local_model_config = {
 
 | 微信群组 |
 |:-------------------------:|
-| <img src="images/wechat_group.jpeg" width="200" height="400"> |
+| <img src="images/wechat_group2.jpeg" width="200"> |
+
+
+<div align="center">
+  <a href="https://star-history.com/#stepfun-ai/gelab-zero&Date">
+    <img src="https://api.star-history.com/svg?repos=stepfun-ai/gelab-zero&type=Date" alt="Star History Chart" width="600">
+  </a>
+</div>
