@@ -1,6 +1,7 @@
 import sys
 import json
 import os
+import re
 
 from collections import OrderedDict
 
@@ -240,27 +241,48 @@ class Parser0920Summary():
         return action_str
     
     def str2action(self, command_str):
+        original_command_str = command_str.strip()
 
-        assert "<THINK>" in command_str and "</THINK>" in command_str, f"command_str {command_str} should contain <THINK> and </THINK>"
+        # === 🔧 Step 0: 修复常见 <THINK> 标签拼写/格式错误 ===
+        # 修复典型 typo: <TINK> → <THINK>
+        command_str = command_str.replace("<TINK>", "<THINK>").replace("</TINK>", "</THINK>")
+        # 修复大小写: <think> → <THINK>
+        command_str = re.sub(r"</?think>", lambda m: m.group(0).upper(), command_str, flags=re.IGNORECASE)
+        # 修复带空格: < THINK > → <THINK>
+        command_str = re.sub(r"<\s*THINK\s*>", "<THINK>", command_str, flags=re.IGNORECASE)
+        command_str = re.sub(r"</\s*THINK\s*>", "</THINK>", command_str, flags=re.IGNORECASE)
 
-        cot = command_str.split("<THINK>")[1].split("</THINK>")[0].strip()
-        
-        kv_str = command_str.split("</THINK>")[1].strip()
-        
-        kvs = kv_str.split("\t")
+        # === Step 1: 尝试提取 <THINK> ... </THINK> ===
+        if "<THINK>" in command_str and "</THINK>" in command_str:
+            try:
+                cot_part = command_str.split("<THINK>", 1)[1].split("</THINK>", 1)[0].strip()
+                kv_part = command_str.split("</THINK>", 1)[1].strip()
+            except Exception as e:
+                print(f"[Parser Warning] Failed to split THINK tags: {e}. Using full response as CoT.")
+                cot_part = original_command_str
+                kv_part = ""
+        else:
+            # 没有 THINK 标签：全部视为 cot，kv 部分为空
+            print(f"[Parser Warning] Missing or unrecognizable <THINK> tags. Using full response as CoT.")
+            cot_part = original_command_str
+            kv_part = ""
 
+        # === Step 2: 解析键值对 ===
         action = OrderedDict()
-        action['cot'] = cot
+        action['cot'] = cot_part
 
-        for kv in kvs:
+        # 按行或按 \t 分割？优先按换行，再 fallback 到 \t
+        if "\n" in kv_part:
+            lines = [line.strip() for line in kv_part.split("\n") if line.strip()]
+        else:
+            lines = [kv.strip() for kv in kv_part.split("\t") if kv.strip()]
+
+        for kv in lines:
             if ":" not in kv:
                 continue
 
-            key = kv.split(":")[0]
-            value = ":".join(kv.split(":")[1:])
-            
-            key = key.strip()
-            value = value.strip()
+            key = kv.split(":", 1)[0].strip()
+            value = kv.split(":", 1)[1].strip()
 
             if key == "action":
                 action['action'] = value
@@ -268,12 +290,17 @@ class Parser0920Summary():
                 action['summary'] = value
             elif "point" in key:
                 point_str = value
-                assert "," in point_str, f"point_str {point_str} should contain ,"
-                x_str, y_str = point_str.split(",")[:2]
-                x = int(x_str.strip())
-                y = int(y_str.strip())
-                action[key] = [x, y]
-
+                if "," not in point_str:
+                    print(f"[Parser Warning] Invalid point format: {point_str}, skipping.")
+                    continue
+                try:
+                    x_str, y_str = point_str.split(",", 1)
+                    x = int(x_str.strip())
+                    y = int(y_str.strip())
+                    action[key] = [x, y]
+                except (ValueError, IndexError):
+                    print(f"[Parser Warning] Failed to parse point: {point_str}, skipping.")
+                    continue
             else:
                 action[key] = value
 
@@ -315,7 +342,8 @@ class Parser0920Summary():
                 "content": conversations
             }
         ]
-        print(f"=============================================messages: \n\n{messages}\n=============================================")
+        # print(f"=============================================messages: \n\n{messages}\n=============================================")
+        print(f"{'='*45}\nmessages:\n{messages}\n{'='*45}")
 
         if return_sft:
             sft = messages2sft(messages)
