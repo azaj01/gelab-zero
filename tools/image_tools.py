@@ -19,7 +19,7 @@ def make_b64_url(image_path, resize_config=None):
     image = Image.open(io.BytesIO(image_data))
 
     if resize_config and resize_config.get("is_resize", False) == True:
-        image = image.resize(resize_config['target_image_size'])
+        image = image.resize(size= resize_config['target_image_size'])
     
     image_data = io.BytesIO()
     image = image.convert('RGB')
