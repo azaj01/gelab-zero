@@ -15,3 +15,5 @@ openpyxl
 streamlit
 tqdm
 requests
+
+fastmcp
