@@ -1,3 +1,4 @@
+
 import os
 import sys
 import time
@@ -63,6 +64,20 @@ def wrap_automate_step_with_timing(server_instance):
 
 if __name__ == "__main__":
 
+     # task = "打开微信，给柏茗，发helloworld"
+    # task = "打开 给到 app，在主页，下滑寻找，员工权益-奋斗食代，帮我领劵。如果不能领取就退出。"
+    # task = "open wechat to send a message 'helloworld' to 'TKJ'"
+    #task = "去淘宝帮我买本书"
+    if len(sys.argv) < 2:
+        print("❌ 错误：未传入任务参数！")
+        print("📝 使用方法：")
+        print(f"   python {sys.argv[0]} \"你的任务描述\"")
+        print("   示例1：python script.py \"去淘宝帮我买本书\"")
+        print("   示例2：python script.py \"打开微信，给柏茗发helloworld\"")
+        sys.exit(1)  
+    
+    task = ' '.join(sys.argv[1:])
+
     # The device ID you want to use
     device_id = list_devices()[0]
     device_wm_size = get_device_wm_size(device_id)
@@ -71,10 +86,7 @@ if __name__ == "__main__":
         "device_wm_size": device_wm_size
     }
 
-    # task = "打开微信，给柏茗，发helloworld"
-    # task = "打开 给到 app，在主页，下滑寻找，员工权益-奋斗食代，帮我领劵。如果不能领取就退出。"
-    # task = "open wechat to send a message 'helloworld' to 'TKJ'"
-    task = "去淘宝帮我买本书"
+   
 
     tmp_rollout_config = local_model_config
     l2_server = LocalServer(tmp_server_config)
